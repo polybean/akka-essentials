@@ -21,9 +21,9 @@ object MultithreadingRecap extends App {
   class BankAccount(@volatile private var amount: Int) {
     override def toString: String = "" + amount
 
-    def withdraw(money: Int) = this.amount -= money
+    def withdraw(money: Int): Unit = this.amount -= money
 
-    def safeWithdraw(money: Int) = this.synchronized {
+    def safeWithdraw(money: Int): Unit = this.synchronized {
       this.amount -= money
     }
   }
@@ -56,7 +56,7 @@ object MultithreadingRecap extends App {
   // callbacks
   future.onComplete {
     case Success(42) => println("I found the meaning of life")
-    case Failure(_) => println("something happened with the meaning of life!")
+    case Failure(_)  => println("something happened with the meaning of life!")
   }
 
   val aProcessedFuture = future.map(_ + 1) // Future with 43
@@ -75,5 +75,4 @@ object MultithreadingRecap extends App {
   // andThen, recover/recoverWith
 
   // Promises
-
 }

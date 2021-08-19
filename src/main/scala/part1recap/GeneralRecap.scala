@@ -1,6 +1,7 @@
 package part1recap
 
-import scala.util.Try
+import scala.annotation.tailrec
+import scala.util.{Failure, Success, Try}
 
 object GeneralRecap extends App {
 
@@ -12,7 +13,7 @@ object GeneralRecap extends App {
   // expressions
   val aConditionedVal = if (aCondition) 42 else 65
 
-  // code block
+  // code block evaluates to a value
   val aCodeBlock = {
     if (aCondition) 74
     56
@@ -20,10 +21,14 @@ object GeneralRecap extends App {
 
   // types
   // Unit
-  val theUnit = println("Hello, Scala")
+  // () is the only instance of the type Unit
+  // () can be thought as a tuple with zero element
+  val theUnit: Unit = println("Hello, Scala")
 
   def aFunction(x: Int): Int = x + 1
+
   // recursion - TAIL recursion
+  @tailrec
   def factorial(n: Int, acc: Int): Int =
     if (n <= 0) acc
     else factorial(n - 1, acc * n)
@@ -38,6 +43,8 @@ object GeneralRecap extends App {
     def eat(a: Animal): Unit
   }
 
+  // extends: is a ...
+  // with: has a ...
   class Crocodile extends Animal with Carnivore {
     override def eat(a: Animal): Unit = println("crunch!")
   }
@@ -63,34 +70,40 @@ object GeneralRecap extends App {
   case class Person(name: String, age: Int) // a LOT in this course!
 
   // Exceptions
-  val aPotentialFailure = try {
-    throw new RuntimeException("I'm innocent, I swear!") // Nothing
-  } catch {
-    case e: Exception => "I caught an exception!"
-  } finally  {
-    // side effects
-    println("some logs")
-  }
+  val aPotentialFailure =
+    try {
+      throw new RuntimeException("I'm innocent, I swear!") // Nothing
+    } catch {
+      case _: Exception => "I caught an exception!"
+    } finally {
+      // side effects
+      println("some logs")
+    }
 
   // Functional programming
 
-  val incrementer = new Function1[Int, Int] {
+  // Int => Int is the syntactic sugar of Function[Int, Int]
+  // Function[Int, Int] is a class
+  // So, Int => Int is a class too
+  // Thus the following syntax
+  val incrementer = new (Int => Int) {
     override def apply(v1: Int): Int = v1 + 1
   }
 
-  val incremented = incrementer(42) // 43
+  // incrementer(42)
+  // is the syntactic sugar of:
   // incrementer.apply(42)
+  val incremented = incrementer(42) // 43
 
   val anonymousIncrementer = (x: Int) => x + 1
-  // Int => Int === Function1[Int, Int]
 
   // FP is all about working with functions as first-class
-  List(1,2,3).map(incrementer)
+  List(1, 2, 3).map(incrementer)
   // map = HOF
 
   // for comprehensions
   val pairs = for {
-    num <- List(1,2,3,4)
+    num <- List(1, 2, 3, 4)
     char <- List('a', 'b', 'c', 'd')
   } yield num + "-" + char
 
@@ -106,6 +119,11 @@ object GeneralRecap extends App {
   }
 
   // pattern matching
+  aTry match {
+    case Success(_)            => println("Success!")
+    case Failure(e: Exception) => println(s"Failed, exception = $e")
+  }
+
   val unknown = 2
   val order = unknown match {
     case 1 => "first"
@@ -116,9 +134,8 @@ object GeneralRecap extends App {
   val bob = Person("Bob", 22)
   val greeting = bob match {
     case Person(n, _) => s"Hi, my name is $n"
-    case _ => "I don't know my name"
+    case _            => "I don't know my name"
   }
 
   // ALL THE PATTERNS
-
 }

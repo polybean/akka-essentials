@@ -4,25 +4,23 @@ import scala.concurrent.Future
 
 object ThreadModelLimitations extends App {
 
-  /*
-  Daniel's rants
-   */
+  /** Daniel's rants
+    */
 
-  /**
-    * DR #1: OOP encapsulation is only valid in the SINGLE THREADED MODEL.
+  /** DR #1: OOP encapsulation is only valid in the SINGLE THREADED MODEL.
     */
   class BankAccount(private var amount: Int) {
     override def toString: String = "" + amount
 
-    def withdraw(money: Int) = this.synchronized {
+    def withdraw(money: Int): Unit = this.synchronized {
       this.amount -= money
     }
 
-    def deposit(money: Int) = this.synchronized {
+    def deposit(money: Int): Unit = this.synchronized {
       this.amount += money
     }
 
-    def getAmount = amount
+    def getAmount: Int = amount
   }
 
 //  val account = new BankAccount(2000)
@@ -40,8 +38,7 @@ object ThreadModelLimitations extends App {
 
   // deadlocks, livelocks
 
-  /**
-    * DR #2: delegating something to a thread is a PAIN.
+  /** DR #2: delegating something to a thread is a PAIN.
     */
 
   // you have a running thread and you want to pass a runnable to that thread.
@@ -65,7 +62,7 @@ object ThreadModelLimitations extends App {
     }
   })
 
-  def delegateToBackgroundThread(r: Runnable) = {
+  def delegateToBackgroundThread(r: Runnable): Unit = {
     if (task == null) task = r
 
     runningThread.synchronized {
@@ -79,19 +76,21 @@ object ThreadModelLimitations extends App {
   Thread.sleep(1000)
   delegateToBackgroundThread(() => println("this should run in the background"))
 
-
-  /**
-    * DR #3: tracing and dealing with errors in a multithreaded env is a PITN.
+  /** DR #3: tracing and dealing with errors in a multithreaded env is a PAIN.
     */
   // 1M numbers in between 10 threads
   import scala.concurrent.ExecutionContext.Implicits.global
 
   val futures = (0 to 9)
-    .map(i => BigInt(100000 * i) until BigInt(100000 * (i + 1))) // 0 - 99999, 100000 - 199999, 200000 - 299999 etc
-    .map(range => Future {
-      if (range.contains(546735)) throw new RuntimeException("invalid number")
-      range.sum
-    })
+    .map(i =>
+      BigInt(100000 * i) until BigInt(100000 * (i + 1))
+    ) // 0 - 99999, 100000 - 199999, 200000 - 299999 etc
+    .map(range =>
+      Future {
+        if (range.contains(546735)) throw new RuntimeException("invalid number")
+        range.sum
+      }
+    )
 
   val sumFuture = Future.reduceLeft(futures)(_ + _) // Future with the sum of all the numbers
   sumFuture.onComplete(println)
