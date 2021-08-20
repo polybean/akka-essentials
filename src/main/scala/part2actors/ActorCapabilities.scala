@@ -4,17 +4,18 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 
 object ActorCapabilities extends App {
 
-
   class SimpleActor extends Actor {
     override def receive: Receive = {
-      case "Hi!" => sender() ! "Hello, there!" // replying to a message
+      case "Hi!"           => sender() ! "Hello, there!" // replying to a message
       case message: String => println(s"[$self] I have received $message")
-      case number: Int => println(s"[simple actor] I have received a NUMBER: $number")
-      case SpecialMessage(contents) => println(s"[simple actor] I have received something SPECIAL: $contents")
+      case number: Int     => println(s"[simple actor] I have received a NUMBER: $number")
+      case SpecialMessage(contents) =>
+        println(s"[simple actor] I have received something SPECIAL: $contents")
       case SendMessageToYourself(content) =>
         self ! content
       case SayHiTo(ref) => ref ! "Hi!" // alice is being passed as the sender
-      case WirelessPhoneMessage(content, ref) => ref forward (content + "s") // i keep the original sender of the WPM
+      case WirelessPhoneMessage(content, ref) =>
+        ref forward (content + "s") // i keep the original sender of the WPM
     }
   }
 
@@ -34,7 +35,8 @@ object ActorCapabilities extends App {
   simpleActor ! SpecialMessage("some special content")
 
   // 2 - actors have information about their context and about themselves
-  // context.self === `this` in OOP
+  // context.self === `this` in OOP, roughly
+  // context.self is of the type ActorRef, not Actor
 
   case class SendMessageToYourself(content: String)
   simpleActor ! SendMessageToYourself("I am an actor and I am proud of it")
@@ -56,27 +58,22 @@ object ActorCapabilities extends App {
   case class WirelessPhoneMessage(content: String, ref: ActorRef)
   alice ! WirelessPhoneMessage("Hi", bob) // noSender.
 
-
-  /**
-    * Exercises
+  /** Exercises
     *
     * 1. a Counter actor
     *   - Increment
     *   - Decrement
     *   - Print
     *
-    * 2. a Bank account as an actor
-    *   receives
+    * 2. a Bank account as an actor receives
     *   - Deposit an amount
     *   - Withdraw an amount
-    *   - Statement
-    *   replies with
+    *   - Statement replies with
     *   - Success
     *   - Failure
     *
-    *   interact with some other kind of actor
+    * interact with some other kind of actor
     */
-
 
   // DOMAIN of the counter
   object Counter {
@@ -93,7 +90,7 @@ object ActorCapabilities extends App {
     override def receive: Receive = {
       case Increment => count += 1
       case Decrement => count -= 1
-      case Print => println(s"[counter] My current count is $count")
+      case Print     => println(s"[counter] My current count is $count")
     }
   }
 
@@ -103,7 +100,6 @@ object ActorCapabilities extends App {
   (1 to 5).foreach(_ => counter ! Increment)
   (1 to 3).foreach(_ => counter ! Decrement)
   counter ! Print
-
 
   // bank account
   object BankAccount {
@@ -143,8 +139,8 @@ object ActorCapabilities extends App {
   }
 
   class Person extends Actor {
-    import Person._
     import BankAccount._
+    import Person._
 
     override def receive: Receive = {
       case LiveTheLife(account) =>
@@ -161,5 +157,4 @@ object ActorCapabilities extends App {
 
   import Person._
   person ! LiveTheLife(account)
-
 }

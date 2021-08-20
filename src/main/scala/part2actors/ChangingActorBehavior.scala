@@ -4,19 +4,19 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 
 object ChangingActorBehavior extends App {
 
-
   object FussyKid {
     case object KidAccept
     case object KidReject
     val HAPPY = "happy"
     val SAD = "sad"
   }
+
   class FussyKid extends Actor {
     import FussyKid._
     import Mom._
 
     // internal state of the kid
-    var state = HAPPY
+    var state: String = HAPPY
     override def receive: Receive = {
       case Food(VEGETABLE) => state = SAD
       case Food(CHOCOLATE) => state = HAPPY
@@ -33,15 +33,16 @@ object ChangingActorBehavior extends App {
     override def receive: Receive = happyReceive
 
     def happyReceive: Receive = {
-      case Food(VEGETABLE) => context.become(sadReceive, false) // change my receive handler to sadReceive
+      case Food(VEGETABLE) =>
+        context.become(sadReceive, discardOld = false) // change my receive handler to sadReceive
       case Food(CHOCOLATE) =>
-      case Ask(_) => sender() ! KidAccept
+      case Ask(_)          => sender() ! KidAccept
     }
 
     def sadReceive: Receive = {
-      case Food(VEGETABLE) => context.become(sadReceive, false)
+      case Food(VEGETABLE) => context.become(sadReceive, discardOld = false)
       case Food(CHOCOLATE) => context.unbecome()
-      case Ask(_) => sender() ! KidReject
+      case Ask(_)          => sender() ! KidReject
     }
   }
 
@@ -52,9 +53,10 @@ object ChangingActorBehavior extends App {
     val VEGETABLE = "veggies"
     val CHOCOLATE = "chocolate"
   }
+
   class Mom extends Actor {
-    import Mom._
     import FussyKid._
+    import Mom._
 
     override def receive: Receive = {
       case MomStart(kidRef) =>
@@ -70,7 +72,6 @@ object ChangingActorBehavior extends App {
   }
 
   import Mom._
-  import FussyKid._
 
   val system = ActorSystem("changingActorBehaviorDemo")
   val fussyKid = system.actorOf(Props[FussyKid])
@@ -85,7 +86,6 @@ object ChangingActorBehavior extends App {
       kid receives Ask(play?) -> kid replies with the sadReceive handler =>
     mom receives KidReject
    */
-
 
   /*
 
@@ -112,9 +112,7 @@ object ChangingActorBehavior extends App {
     1. happyReceive
    */
 
-  /**
-    * Exercises
-    * 1 - recreate the Counter Actor with context.become and NO MUTABLE STATE
+  /** Exercises 1 - recreate the Counter Actor with context.become and NO MUTABLE STATE
     */
 
   object Counter {
@@ -131,6 +129,7 @@ object ChangingActorBehavior extends App {
     def countReceive(currentCount: Int): Receive = {
       case Increment =>
         println(s"[countReceive($currentCount)] incrementing")
+        // discardOld defaults to true
         context.become(countReceive(currentCount + 1))
       case Decrement =>
         println(s"[countReceive($currentCount)] decrementing")
@@ -146,8 +145,7 @@ object ChangingActorBehavior extends App {
   (1 to 3).foreach(_ => counter ! Decrement)
   counter ! Print
 
-  /**
-    * Exercise 2 - a simplified voting system
+  /** Exercise 2 - a simplified voting system
     */
 
   case class Vote(candidate: String)
@@ -155,12 +153,12 @@ object ChangingActorBehavior extends App {
   case class VoteStatusReply(candidate: Option[String])
   class Citizen extends Actor {
     override def receive: Receive = {
-      case Vote(c) => context.become(voted(c))
+      case Vote(c)           => context.become(voted(c))
       case VoteStatusRequest => sender() ! VoteStatusReply(None)
     }
 
-    def voted(candidate: String): Receive = {
-      case VoteStatusRequest => sender() ! VoteStatusReply(Some(candidate))
+    def voted(candidate: String): Receive = { case VoteStatusRequest =>
+      sender() ! VoteStatusReply(Some(candidate))
     }
   }
 
@@ -168,10 +166,9 @@ object ChangingActorBehavior extends App {
   class VoteAggregator extends Actor {
     override def receive: Receive = awaitingCommand
 
-    def awaitingCommand: Receive = {
-      case AggregateVotes(citizens) =>
-        citizens.foreach(citizenRef => citizenRef ! VoteStatusRequest)
-        context.become(awaitingStatuses(citizens, Map()))
+    def awaitingCommand: Receive = { case AggregateVotes(citizens) =>
+      citizens.foreach(citizenRef => citizenRef ! VoteStatusRequest)
+      context.become(awaitingStatuses(citizens, Map()))
     }
 
     def awaitingStatuses(stillWaiting: Set[ActorRef], currentStats: Map[String, Int]): Receive = {

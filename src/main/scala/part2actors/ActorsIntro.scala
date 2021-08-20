@@ -11,6 +11,7 @@ object ActorsIntro extends App {
   // part2 - create actors
   // word count actor
 
+  // No-argument constructor
   class WordCountActor extends Actor {
     // internal data
     var totalWords = 0
@@ -26,28 +27,30 @@ object ActorsIntro extends App {
 
   // part3 - instantiate our actor
   val wordCounter = actorSystem.actorOf(Props[WordCountActor], "wordCounter")
+  println(wordCounter) // Actor[akka://firstActorSystem/user/wordCounter#106907241]
+
   val anotherWordCounter = actorSystem.actorOf(Props[WordCountActor], "anotherWordCounter")
+  println(anotherWordCounter) // Actor[akka://firstActorSystem/user/anotherWordCounter#872682675]
 
   // part4 - communicate!
   wordCounter ! "I am learning Akka and it's pretty damn cool!" // "tell"
   anotherWordCounter ! "A different message"
   // asynchronous!
 
-
   object Person {
-    def props(name: String) = Props(new Person(name))
+    // Call by name
+    // creator: => T
+    def props(name: String): Props = Props(new Person(name))
   }
 
+  // Actor constructor takes arguments
   class Person(name: String) extends Actor {
     override def receive: Receive = {
       case "hi" => println(s"Hi, my name is $name")
-      case _ =>
+      case _    =>
     }
   }
 
   val person = actorSystem.actorOf(Person.props("Bob"))
   person ! "hi"
-
-
-
 }

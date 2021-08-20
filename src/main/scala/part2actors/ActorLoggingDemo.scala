@@ -1,13 +1,13 @@
 package part2actors
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import akka.event.Logging
+import akka.event.{Logging, LoggingAdapter}
 
 object ActorLoggingDemo extends App {
 
   class SimpleActorWithExplicitLogger extends Actor {
     // #1 - explicit logging
-    val logger = Logging(context.system, this)
+    val logger: LoggingAdapter = Logging(context.system, this)
 
     override def receive: Receive = {
       /*
@@ -16,7 +16,7 @@ object ActorLoggingDemo extends App {
         3 - WARNING/WARN
         4 - ERROR
        */
-      case message => logger.info(message.toString)// LOG it
+      case message => logger.info(message.toString) // LOG it
     }
   }
 
@@ -28,14 +28,12 @@ object ActorLoggingDemo extends App {
   // #2 - ActorLogging
   class ActorWithLogging extends Actor with ActorLogging {
     override def receive: Receive = {
-      case (a, b) => log.info("Two things: {} and {}", a, b) // Two things: 2 and 3
+      case (a, b)  => log.info("Two things: {} and {}", a, b) // Two things: 2 and 3
       case message => log.info(message.toString)
     }
   }
 
   val simplerActor = system.actorOf(Props[ActorWithLogging])
   simplerActor ! "Logging a simple message by extending a trait"
-
   simplerActor ! (42, 65)
-
 }
