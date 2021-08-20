@@ -6,13 +6,19 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Random
 
-class TimedAssertionsSpec extends TestKit(
-  ActorSystem("TimedAssertionsSpec", ConfigFactory.load().getConfig("specialTimedAssertionsConfig")))
-  with ImplicitSender
-  with WordSpecLike
-  with BeforeAndAfterAll {
+class TimedAssertionsSpec
+    extends TestKit(
+      ActorSystem(
+        "TimedAssertionsSpec",
+        ConfigFactory.load().getConfig("specialTimedAssertionsConfig")
+      )
+    )
+    with ImplicitSender
+    with WordSpecLike
+    with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -24,7 +30,7 @@ class TimedAssertionsSpec extends TestKit(
     val workerActor = system.actorOf(Props[WorkerActor])
 
     "reply with the meaning of life in a timely manner" in {
-      within(500 millis, 1 second) {
+      within(500 millis, 1 second) { // time-boxed test
         workerActor ! "work"
         expectMsg(WorkResult(42))
       }
@@ -34,11 +40,17 @@ class TimedAssertionsSpec extends TestKit(
       within(1 second) {
         workerActor ! "workSequence"
 
-        val results: Seq[Int] = receiveWhile[Int](max=2 seconds, idle=500 millis, messages=4) {
-          case WorkResult(result) => result
+        val results: Seq[Int] = {
+          // the arguments to receiveWhile specify the stop condition
+          // max: stop the receiveWhile after ${max} seconds
+          // idle: stop the receiveWhile if there is a ${idle} period
+          // messages: the receiveWhile if ${messages} are received
+          receiveWhile[Int](max = 2 seconds, idle = 60 millis, messages = 10) {
+            case WorkResult(result) => result
+          }
         }
 
-        assert(results.sum > 5)
+        assert(results.sum== 10)
       }
     }
 
@@ -46,12 +58,19 @@ class TimedAssertionsSpec extends TestKit(
       within(1 second) {
         val probe = TestProbe()
         probe.send(workerActor, "work")
-        probe.expectMsg(WorkResult(42)) // timeout of 0.3 seconds
+
+        // TestProbe has it own timeout settings, and
+        // expectMsg is NOT controlled by the time-box set by within method
+
+        // follow the stack trace of the failed test case
+        // it's quite easy to locate the timeout value in code (which defaults to 3s)
+
+        // customized the timeout setting:
+        // specialTimedAssertionsConfig in application.conf
+        probe.expectMsg(WorkResult(42))
       }
     }
-
   }
-
 }
 
 object TimedAssertionsSpec {

@@ -4,10 +4,11 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
-class TestProbeSpec extends TestKit(ActorSystem("TestProbeSpec"))
-  with ImplicitSender
-  with WordSpecLike
-  with BeforeAndAfterAll {
+class TestProbeSpec
+    extends TestKit(ActorSystem("TestProbeSpec"))
+    with ImplicitSender
+    with WordSpecLike
+    with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -18,6 +19,8 @@ class TestProbeSpec extends TestKit(ActorSystem("TestProbeSpec"))
   "A master actor" should {
     "register a slave" in {
       val master = system.actorOf(Props[Master])
+
+      // use TestProbe as a stub actor
       val slave = TestProbe("slave")
 
       master ! Register(slave.ref)
@@ -34,6 +37,7 @@ class TestProbeSpec extends TestKit(ActorSystem("TestProbeSpec"))
       master ! Work(workloadString)
 
       // the interaction between the master and the slave actor
+      // besides the stub functionality, TestProb works as a kind of context
       slave.expectMsg(SlaveWork(workloadString, testActor))
       slave.reply(WorkCompleted(3, testActor))
 
@@ -51,8 +55,8 @@ class TestProbeSpec extends TestKit(ActorSystem("TestProbeSpec"))
       master ! Work(workloadString)
 
       // in the meantime I don't have a slave actor
-      slave.receiveWhile() {
-        case SlaveWork(`workloadString`, `testActor`) => slave.reply(WorkCompleted(3, testActor))
+      slave.receiveWhile() { case SlaveWork(`workloadString`, `testActor`) =>
+        slave.reply(WorkCompleted(3, testActor))
       }
 
       expectMsg(Report(3))

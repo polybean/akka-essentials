@@ -5,12 +5,14 @@ import akka.testkit.{ImplicitSender, TestKit}
 import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Random
 
-class  BasicSpec extends TestKit(ActorSystem("BasicSpec"))
-  with ImplicitSender
-  with WordSpecLike
-  with BeforeAndAfterAll {
+class BasicSpec
+    extends TestKit(ActorSystem("BasicSpec"))
+    with ImplicitSender
+    with WordSpecLike
+    with BeforeAndAfterAll {
 
   // setup
   override def afterAll(): Unit = {
@@ -29,11 +31,11 @@ class  BasicSpec extends TestKit(ActorSystem("BasicSpec"))
     }
   }
 
-  "A blackhole actor" should {
+  "A blackHole actor" should {
     "send back some message" in {
-      val blackhole = system.actorOf(Props[Blackhole])
+      val blackHole = system.actorOf(Props[BlackHole])
       val message = "hello, test"
-      blackhole ! message
+      blackHole ! message
 
       expectNoMessage(1 second)
     }
@@ -45,8 +47,11 @@ class  BasicSpec extends TestKit(ActorSystem("BasicSpec"))
 
     "turn a string into uppercase" in {
       labTestActor ! "I love Akka"
+
+      // grab the replied message
       val reply = expectMsgType[String]
 
+      // do the assertion
       assert(reply == "I LOVE AKKA")
     }
 
@@ -65,6 +70,7 @@ class  BasicSpec extends TestKit(ActorSystem("BasicSpec"))
       val messages = receiveN(2) // Seq[Any]
 
       // free to do more complicated assertions
+      assert(messages.toList == List("Scala", "Akka"))
     }
 
     "reply with cool tech in a fancy way" in {
@@ -72,24 +78,21 @@ class  BasicSpec extends TestKit(ActorSystem("BasicSpec"))
 
       expectMsgPF() {
         case "Scala" => // only care that the PF is defined
-        case "Akka" =>
+        case "Akka"  =>
       }
     }
-
   }
-
-
 }
 
 object BasicSpec {
 
   class SimpleActor extends Actor {
-    override def receive: Receive = {
-      case message => sender() ! message
+    override def receive: Receive = { case message =>
+      sender() ! message
     }
   }
 
-  class Blackhole extends Actor {
+  class BlackHole extends Actor {
     override def receive: Receive = Actor.emptyBehavior
   }
 
