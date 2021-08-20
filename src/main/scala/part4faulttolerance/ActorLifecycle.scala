@@ -10,19 +10,17 @@ object ActorLifecycle extends App {
     override def preStart(): Unit = log.info("I am starting")
     override def postStop(): Unit = log.info("I have stopped")
 
-    override def receive: Receive = {
-      case StartChild =>
-        context.actorOf(Props[LifecycleActor], "child")
+    override def receive: Receive = { case StartChild =>
+      context.actorOf(Props[LifecycleActor], "child")
     }
   }
 
   val system = ActorSystem("LifecycleDemo")
-//  val parent = system.actorOf(Props[LifecycleActor], "parent")
-//  parent ! StartChild
-//  parent ! PoisonPill
+  val parent = system.actorOf(Props[LifecycleActor], "parent")
+  parent ! StartChild
+  parent ! PoisonPill
 
-  /**
-    * restart
+  /** restart
     */
 
   object Fail
@@ -34,7 +32,7 @@ object ActorLifecycle extends App {
     private val child = context.actorOf(Props[Child], "supervisedChild")
 
     override def receive: Receive = {
-      case FailChild => child ! Fail
+      case FailChild  => child ! Fail
       case CheckChild => child ! Check
     }
   }

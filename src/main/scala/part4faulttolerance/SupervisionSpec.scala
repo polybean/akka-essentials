@@ -1,12 +1,25 @@
 package part4faulttolerance
 
 import akka.actor.SupervisorStrategy.{Escalate, Restart, Resume, Stop}
-import akka.actor.{Actor, ActorRef, ActorSystem, AllForOneStrategy, OneForOneStrategy, Props, SupervisorStrategy, Terminated}
+import akka.actor.{
+  Actor,
+  ActorRef,
+  ActorSystem,
+  AllForOneStrategy,
+  OneForOneStrategy,
+  Props,
+  SupervisorStrategy,
+  Terminated
+}
 import akka.testkit.{EventFilter, ImplicitSender, TestKit}
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, OneInstancePerTest, WordSpecLike}
 
-class SupervisionSpec extends TestKit(ActorSystem("SupervisionSpec"))
-  with ImplicitSender with WordSpecLike with BeforeAndAfterAll {
+class SupervisionSpec
+    extends TestKit(ActorSystem("SupervisionSpec"))
+    with ImplicitSender
+    with WordSpecLike
+    with BeforeAndAfterAll
+    with OneInstancePerTest {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -26,6 +39,8 @@ class SupervisionSpec extends TestKit(ActorSystem("SupervisionSpec"))
 
       child ! "Akka is awesome because I am learning to think in a whole new way"
       child ! Report
+
+      // NO restart, the actor state preserved
       expectMsg(3)
     }
 
@@ -61,6 +76,9 @@ class SupervisionSpec extends TestKit(ActorSystem("SupervisionSpec"))
 
       watch(child)
       child ! 43
+
+      // the exception is escalated to the user guardian,
+      // whose default supervisor strategy is RESTART
       val terminatedMessage = expectMsgType[Terminated]
       assert(terminatedMessage.actor == child)
     }
@@ -78,6 +96,10 @@ class SupervisionSpec extends TestKit(ActorSystem("SupervisionSpec"))
 
       child ! 45
       child ! Report
+
+      // I don't understand
+      // if the user guardian restarts the NoDeathOnRestartSupervisor subtree
+      // what's the point here???
       expectMsg(0)
     }
   }
@@ -112,31 +134,39 @@ object SupervisionSpec {
   class Supervisor extends Actor {
 
     override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
-      case _: NullPointerException => Restart
+      case _: NullPointerException     => Restart
       case _: IllegalArgumentException => Stop
-      case _: RuntimeException => Resume
-      case _: Exception => Escalate
+      case _: RuntimeException         => Resume
+      case _: Exception                => Escalate
     }
 
-    override def receive: Receive = {
-      case props: Props =>
-        val childRef = context.actorOf(props)
-        sender() ! childRef
+    override def receive: Receive = { case props: Props =>
+      val childRef = context.actorOf(props)
+      sender() ! childRef
     }
   }
 
   class NoDeathOnRestartSupervisor extends Supervisor {
     override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-      // empty
+      // override the preRestart methods with empty body
+      // check out Actor.preRestart method
+
+//      def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+//        context.children foreach { child ⇒
+//          context.unwatch(child)
+//          context.stop(child)
+//        }
+//        postStop()
+//      }
     }
   }
 
   class AllForOneSupervisor extends Supervisor {
-    override val supervisorStrategy = AllForOneStrategy() {
-      case _: NullPointerException => Restart
+    override val supervisorStrategy: SupervisorStrategy = AllForOneStrategy() {
+      case _: NullPointerException     => Restart
       case _: IllegalArgumentException => Stop
-      case _: RuntimeException => Resume
-      case _: Exception => Escalate
+      case _: RuntimeException         => Resume
+      case _: Exception                => Escalate
     }
   }
 
@@ -146,13 +176,13 @@ object SupervisionSpec {
 
     override def receive: Receive = {
       case Report => sender() ! words
-      case "" => throw new NullPointerException("sentence is empty")
+      case ""     => throw new NullPointerException("sentence is empty")
       case sentence: String =>
         if (sentence.length > 20) throw new RuntimeException("sentence is too big")
-        else if (!Character.isUpperCase(sentence(0))) throw new IllegalArgumentException("sentence must start with uppercase")
+        else if (!Character.isUpperCase(sentence(0)))
+          throw new IllegalArgumentException("sentence must start with uppercase")
         else words += sentence.split(" ").length
       case _ => throw new Exception("can only receive strings")
     }
   }
-
 }

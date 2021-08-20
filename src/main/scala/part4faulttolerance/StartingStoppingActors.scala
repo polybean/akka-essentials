@@ -1,6 +1,6 @@
 package part4faulttolerance
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, PoisonPill, Props, Terminated}
 
 object StartingStoppingActors extends App {
 
@@ -34,13 +34,12 @@ object StartingStoppingActors extends App {
   }
 
   class Child extends Actor with ActorLogging {
-    override def receive: Receive = {
-      case message => log.info(message.toString)
+    override def receive: Receive = { case message =>
+      log.info(message.toString)
     }
   }
 
-  /**
-    * method #1 - using context.stop
+  /** method #1 - using context.stop
     */
   import Parent._
   //  val parent = system.actorOf(Props[Parent], "parent")
@@ -59,8 +58,7 @@ object StartingStoppingActors extends App {
   //  for (_ <- 1 to 10) parent ! "parent, are you still there?" // should not be received
   //  for (i <- 1 to 100) child2 ! s"[$i] second kid, are you still alive?"
 
-  /**
-    * method #2 - using special messages
+  /** method #2 - using special messages
     */
   //  val looseActor = system.actorOf(Props[Child])
   //  looseActor ! "hello, loose actor"
@@ -72,8 +70,7 @@ object StartingStoppingActors extends App {
   //  abruptlyTerminatedActor ! Kill
   //  abruptlyTerminatedActor ! "you have been terminated"
 
-  /**
-    *  Death watch
+  /** Death watch
     */
   class Watcher extends Actor with ActorLogging {
     import Parent._
