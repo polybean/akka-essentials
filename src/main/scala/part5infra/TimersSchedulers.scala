@@ -3,44 +3,44 @@ package part5infra
 import akka.actor.{Actor, ActorLogging, ActorSystem, Cancellable, Props, Timers}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object TimersSchedulers extends App {
 
   class SimpleActor extends Actor with ActorLogging {
-    override def receive: Receive = {
-      case message => log.info(message.toString)
+    override def receive: Receive = { case message =>
+      log.info(message.toString)
     }
   }
 
   val system = ActorSystem("SchedulersTimersDemo")
-  //  val simpleActor = system.actorOf(Props[SimpleActor])
+  val simpleActor = system.actorOf(Props[SimpleActor])
 
-  //  system.log.info("Scheduling reminder for simpleActor")
+  system.log.info("Scheduling reminder for simpleActor")
 
   import system.dispatcher
 
-  //  system.scheduler.scheduleOnce(1 second) {
-  //    simpleActor ! "reminder"
-  //  }
-  //
-  //  val routine: Cancellable = system.scheduler.schedule(1 second, 2 seconds) {
-  //    simpleActor ! "heartbeat"
-  //  }
-  //
-  //  system.scheduler.scheduleOnce(5 seconds) {
-  //    routine.cancel()
-  //  }
+  system.scheduler.scheduleOnce(1 second) {
+    simpleActor ! "reminder"
+  }
 
-  /**
-    * Exercise: implement a self-closing actor
+  val routine: Cancellable = system.scheduler.schedule(1 second, 2 seconds) {
+    simpleActor ! "heartbeat"
+  }
+
+  system.scheduler.scheduleOnce(5 seconds) {
+    routine.cancel()
+  }
+
+  /** Exercise: implement a self-closing actor
     *
-    * - if the actor receives a message (anything), you have 1 second to send it another message
-    * - if the time window expires, the actor will stop itself
-    * - if you send another message, the time window is reset
+    *   - if the actor receives a message (anything), you have 1 second to send it another message
+    *   - if the time window expires, the actor will stop itself
+    *   - if you send another message, the time window is reset
     */
 
   class SelfClosingActor extends Actor with ActorLogging {
-    var schedule = createTimeoutWindow()
+    var schedule: Cancellable = createTimeoutWindow()
 
     def createTimeoutWindow(): Cancellable = {
       context.system.scheduler.scheduleOnce(1 second) {
@@ -59,18 +59,17 @@ object TimersSchedulers extends App {
     }
   }
 
-  //  val selfClosingActor = system.actorOf(Props[SelfClosingActor], "selfClosingActor")
-  //  system.scheduler.scheduleOnce(250 millis) {
-  //    selfClosingActor ! "ping"
-  //  }
-  //
-  //  system.scheduler.scheduleOnce(2 seconds) {
-  //    system.log.info("sending pong to the self-closing actor")
-  //    selfClosingActor ! "pong"
-  //  }
+  val selfClosingActor = system.actorOf(Props[SelfClosingActor], "selfClosingActor")
+  system.scheduler.scheduleOnce(250 millis) {
+    selfClosingActor ! "ping"
+  }
 
-  /**
-    * Timer
+  system.scheduler.scheduleOnce(2 seconds) {
+    system.log.info("sending pong to the self-closing actor")
+    selfClosingActor ! "pong"
+  }
+
+  /** Timer
     */
 
   case object TimerKey
@@ -97,5 +96,4 @@ object TimersSchedulers extends App {
   system.scheduler.scheduleOnce(5 seconds) {
     timerHeartbeatActor ! Stop
   }
-
 }

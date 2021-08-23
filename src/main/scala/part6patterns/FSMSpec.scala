@@ -6,9 +6,14 @@ import org.scalatest.{BeforeAndAfterAll, OneInstancePerTest, WordSpecLike}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
-class FSMSpec extends TestKit(ActorSystem("FSMSpec"))
-  with ImplicitSender with WordSpecLike with BeforeAndAfterAll with OneInstancePerTest {
+class FSMSpec
+    extends TestKit(ActorSystem("FSMSpec"))
+    with ImplicitSender
+    with WordSpecLike
+    with BeforeAndAfterAll
+    with OneInstancePerTest {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -115,28 +120,38 @@ object FSMSpec {
 
     def idle: Receive = {
       case Initialize(inventory, prices) => context.become(operational(inventory, prices))
-      case _ => sender() ! VendingError("MachineNotInitialized")
+      case _                             => sender() ! VendingError("MachineNotInitialized")
     }
 
     def operational(inventory: Map[String, Int], prices: Map[String, Int]): Receive = {
-      case RequestProduct(product) => inventory.get(product) match {
-        case None | Some(0) =>
-          sender() ! VendingError("ProductNotAvailable")
-        case Some(_) =>
-          val price = prices(product)
-          sender() ! Instruction(s"Please insert $price dollars")
-          context.become(waitForMoney(inventory, prices, product, 0, startReceiveMoneyTimeoutSchedule, sender()))
-      }
+      case RequestProduct(product) =>
+        inventory.get(product) match {
+          case None | Some(0) =>
+            sender() ! VendingError("ProductNotAvailable")
+          case Some(_) =>
+            val price = prices(product)
+            sender() ! Instruction(s"Please insert $price dollars")
+            context.become(
+              waitForMoney(
+                inventory,
+                prices,
+                product,
+                0,
+                startReceiveMoneyTimeoutSchedule,
+                sender()
+              )
+            )
+        }
     }
 
     def waitForMoney(
-                      inventory: Map[String, Int],
-                      prices: Map[String, Int],
-                      product: String,
-                      money: Int,
-                      moneyTimeoutSchedule: Cancellable,
-                      requester: ActorRef
-                    ): Receive = {
+        inventory: Map[String, Int],
+        prices: Map[String, Int],
+        product: String,
+        money: Int,
+        moneyTimeoutSchedule: Cancellable,
+        requester: ActorRef
+    ): Receive = {
       case ReceiveMoneyTimeout =>
         requester ! VendingError("RequestTimedOut")
         if (money > 0) requester ! GiveBackChange(money)
@@ -156,11 +171,16 @@ object FSMSpec {
         } else {
           val remainingMoney = price - money - amount
           requester ! Instruction(s"Please insert $remainingMoney dollars")
-          context.become(waitForMoney(
-            inventory, prices, product, // don't change
-            money + amount,  // user has inserted some money
-            startReceiveMoneyTimeoutSchedule, // I need to set the timeout again
-            requester))
+          context.become(
+            waitForMoney(
+              inventory,
+              prices,
+              product, // don't change
+              money + amount, // user has inserted some money
+              startReceiveMoneyTimeoutSchedule, // I need to set the timeout again
+              requester
+            )
+          )
         }
     }
 
@@ -178,7 +198,13 @@ object FSMSpec {
   trait VendingData
   case object Uninitialized extends VendingData
   case class Initialized(inventory: Map[String, Int], prices: Map[String, Int]) extends VendingData
-  case class WaitForMoneyData(inventory: Map[String, Int], prices: Map[String, Int], product: String, money: Int, requester: ActorRef) extends VendingData
+  case class WaitForMoneyData(
+      inventory: Map[String, Int],
+      prices: Map[String, Int],
+      product: String,
+      money: Int,
+      requester: ActorRef
+  ) extends VendingData
 
   class VendingMachineFSM extends FSM[VendingState, VendingData] {
     // we don't have a receive handler
@@ -222,17 +248,16 @@ object FSMSpec {
         stay()
     }
 
-    when(Operational) {
-      case Event(RequestProduct(product), Initialized(inventory, prices)) =>
-        inventory.get(product) match {
-          case None | Some(0) =>
-            sender() ! VendingError("ProductNotAvailable")
-            stay()
-          case Some(_) =>
-            val price = prices(product)
-            sender() ! Instruction(s"Please insert $price dollars")
-            goto(WaitForMoney) using WaitForMoneyData(inventory, prices, product, 0, sender())
-        }
+    when(Operational) { case Event(RequestProduct(product), Initialized(inventory, prices)) =>
+      inventory.get(product) match {
+        case None | Some(0) =>
+          sender() ! VendingError("ProductNotAvailable")
+          stay()
+        case Some(_) =>
+          val price = prices(product)
+          sender() ! Instruction(s"Please insert $price dollars")
+          goto(WaitForMoney) using WaitForMoneyData(inventory, prices, product, 0, sender())
+      }
     }
 
     when(WaitForMoney, stateTimeout = 1 second) {
@@ -241,7 +266,10 @@ object FSMSpec {
         if (money > 0) requester ! GiveBackChange(money)
         goto(Operational) using Initialized(inventory, prices)
 
-      case Event(ReceiveMoney(amount), WaitForMoneyData(inventory, prices, product, money, requester)) =>
+      case Event(
+            ReceiveMoney(amount),
+            WaitForMoneyData(inventory, prices, product, money, requester)
+          ) =>
         val price = prices(product)
         if (money + amount >= price) {
           // user buys product
@@ -261,14 +289,13 @@ object FSMSpec {
         }
     }
 
-    whenUnhandled {
-      case Event(_, _) =>
-        sender() ! VendingError("CommandNotFound")
-        stay()
+    whenUnhandled { case Event(_, _) =>
+      sender() ! VendingError("CommandNotFound")
+      stay()
     }
 
-    onTransition {
-      case stateA -> stateB => log.info(s"Transitioning from $stateA to $stateB")
+    onTransition { case stateA -> stateB =>
+      log.info(s"Transitioning from $stateA to $stateB")
     }
 
     initialize()

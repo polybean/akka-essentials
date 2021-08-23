@@ -7,14 +7,17 @@ import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 // step 1 - import the ask pattern
-import akka.pattern.ask
-import akka.pattern.pipe
+import akka.pattern.{ask, pipe}
 
-class AskSpec extends TestKit(ActorSystem("AskSpec"))
-  with ImplicitSender with WordSpecLike with BeforeAndAfterAll {
+class AskSpec
+    extends TestKit(ActorSystem("AskSpec"))
+    with ImplicitSender
+    with WordSpecLike
+    with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -30,7 +33,7 @@ class AskSpec extends TestKit(ActorSystem("AskSpec"))
     authenticatorTestSuite(Props[PipedAuthManager])
   }
 
-  def authenticatorTestSuite(props: Props) = {
+  def authenticatorTestSuite(props: Props): Unit = {
     import AuthManager._
 
     "fail to authenticate a non-registered user" in {
@@ -91,14 +94,14 @@ object AskSpec {
     implicit val timeout: Timeout = Timeout(1 second)
     implicit val executionContext: ExecutionContext = context.dispatcher
 
-    protected val authDb = context.actorOf(Props[KVActor])
+    protected val authDb: ActorRef = context.actorOf(Props[KVActor])
 
     override def receive: Receive = {
       case RegisterUser(username, password) => authDb ! Write(username, password)
       case Authenticate(username, password) => handleAuthentication(username, password)
     }
 
-    def handleAuthentication(username: String, password: String) = {
+    def handleAuthentication(username: String, password: String): Unit = {
       val originalSender = sender()
       // step 3 - ask the actor
       val future = authDb ? Read(username)
@@ -134,6 +137,7 @@ object AskSpec {
       // step 5 - pipe the resulting future to the actor you want to send the result to
       /*
         When the future completes, send the response to the actor ref in the arg list.
+        with the pipe solution there is no change to break the actor encapsulation as the non-pipe version does.
        */
       responseFuture.pipeTo(sender())
     }

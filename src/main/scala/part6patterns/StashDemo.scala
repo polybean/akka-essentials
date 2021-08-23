@@ -31,7 +31,6 @@ object StashDemo extends App {
       - read and write are handled
    */
 
-
   case object Open
   case object Close
   case object Read
@@ -75,13 +74,11 @@ object StashDemo extends App {
   val system = ActorSystem("StashDemo")
   val resourceActor = system.actorOf(Props[ResourceActor])
 
-
   resourceActor ! Read // stashed
   resourceActor ! Open // switch to open; I have read ""
   resourceActor ! Open // stashed
   resourceActor ! Write("I love stash") // I am writing I love stash
   resourceActor ! Close // switch to closed; switch to open
   resourceActor ! Read // I have read I love stash
-
 
 }
